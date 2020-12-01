@@ -1,207 +1,224 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-  <meta charset='utf-8' />
-  <title></title>
-  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.0/jquery.min.js"></script>
-  <script src="https://api.mapbox.com/mapbox-gl-js/v1.9.1/mapbox-gl.js"></script>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v1.9.1/mapbox-gl.css" rel="stylesheet" />
-  <script src='https://npmcdn.com/csv2geojson@latest/csv2geojson.js'></script>
-  <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
-  <link href="nouislider.css" rel="stylesheet">
-  <script src="nouislider.js"></script>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-    }
-    #map {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 100%;
-    }
-    #Time-slider{
-        position:fixed;
-        top: 25px;
-        padding-left: 25px;
-    }
-
-    /* Popup styling */
-
-    .mapboxgl-popup {
-      padding-bottom: 5px;
-    }
-
-    .mapboxgl-popup-close-button {
-      display: none;
-    }
-
-    .mapboxgl-popup-content {
-      font: 400 15px/22px 'Source Sans Pro', 'Helvetica Neue', Sans-serif;
-      padding: 0;
-      width: 250px;
-    }
-
-    .mapboxgl-popup-content-wrapper {
-      padding: 1%;
-    }
-
-    .mapboxgl-popup-content h3 {
-      background: rgb(61, 59, 59);
-      text-align: center;
-      color: #fff;
-      margin: 0;
-      display: block;
-      padding: 15px;
-      font-weight: 700;
-      margin-top: -5px;
-    }
-
-    .mapboxgl-popup-content h4 {
-      margin: 0;
-      display: block;
-      padding: 10px 3px 10px 10px;
-      font-weight: 400;
-    }
-
-    .mapboxgl-container {
-      cursor: pointer;
-    }
-
-    .mapboxgl-popup-anchor-top>.mapboxgl-popup-content {
-      margin-top: 3px;
-    }
-
-    .mapboxgl-popup-anchor-top>.mapboxgl-popup-tip {
-      border-bottom-color: rgb(61, 59, 59);
-    }
-  </style>
+<meta charset="utf-8" />
+<title>Create a time slider</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.css" rel="stylesheet" />
+<style>
+	body { margin: 0; padding: 0; }
+	#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
 </head>
-
 <body>
+<style>
+.map-overlay {
+font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+position: absolute;
+width: 25%;
+top: 0;
+left: 0;
+padding: 10px;
+}
+ 
+.map-overlay .map-overlay-inner {
+background-color: #fff;
+box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+border-radius: 3px;
+padding: 10px;
+margin-bottom: 10px;
+}
+ 
+.map-overlay h2 {
+line-height: 24px;
+display: block;
+margin: 0 0 10px;
+}
+ 
+.map-overlay .legend .bar {
+height: 10px;
+width: 100%;
+background: linear-gradient(to right, #fca107, #7f3121);
+}
+ 
+.map-overlay input {
+background-color: transparent;
+display: inline-block;
+width: 100%;
+position: relative;
+margin: 0;
+cursor: ew-resize;
+}
+</style>
+ 
+<div id="map"></div>
+ 
+<div class="map-overlay top">
+<div class="map-overlay-inner">
+<h2>Significant volcanic eruptions from 2000-2020</h2>
+<label id="month"></label>
+<input id="slider" type="range" min="0" max="11" step="1" value="0" />
+</div>
+<div class="map-overlay-inner">
+<div id="legend" class="legend">
+<div class="bar"></div>
+<div>Magnitude (m)</div>
+</div>
+</div>
+</div>
+ 
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script>
+	mapboxgl.accessToken = 'pk.eyJ1IjoiYXJwaXRhMjUwOSIsImEiOiJja2dibnVxenQwMHUxMnptZjJjZ2dqNnRpIn0.k-hGdFzGPxjJ1CbQP10D3w';
+var map = new mapboxgl.Map({
+container: 'map',
+style: 'mapbox://styles/mapbox/light-v10',
+center: [34.775981, 32.081287],
+    zoom: 3
+});
+ 
+var years = ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015', '2016', '2007', '2008'];
 
-  <div id='map'></div>
-  <div id = "Time slider"></div>
-  <script>
 
-    var transformRequest = (url, resourceType) => {
-      var isMapboxRequest =
-        url.slice(8, 22) === "api.mapbox.com" ||
-        url.slice(10, 26) === "tiles.mapbox.com";
-      return {
-        url: isMapboxRequest
-          ? url.replace("?", "?pluginName=sheetMapper&")
-          : url
-      };
-    };
-    //YOUR TURN: add your Mapbox token 
-    mapboxgl.accessToken = 'pk.eyJ1IjoiY2xhcmt1IiwiYSI6ImNrZ2ExNjdjYzAycmwzMW1mMm92Ynl5cDIifQ.0OXA0o-WYeuKNfhhLc45kQ'; //Mapbox token 
-    var map = new mapboxgl.Map({
-      container: 'map', // container id
-      style: 'mapbox://styles/mapbox/streets-v11', //stylesheet location
-      center: [-122.411464, 37.7852299], // starting position
-      zoom: 10,// starting zoom
-      transformRequest: transformRequest
-    });
+function filterBy(year) {
+    var filters = ['==', 'Year', year];
+    map.setFilter('Volcano_Name-circles', filters);
+    map.setFilter('Volcano_Name-labels', filters);
+    
 
-    $(document).ready(function () {
-      $.ajax({
-        type: "GET",
-        //YOUR TURN: Replace with csv export link
-        url: 'https://docs.google.com/spreadsheets/d/1Ft8OOIrYyMLTd3ThAxnVks9fs3Ru9wv1/gviz/tq?tqx=out:csv&sheet=Sheet1',
-        dataType: "text",
-        success: function (csvData) { makeGeoJSON(csvData); }
-      });
+ 
+// Set the label to the month
+document.getElementById('Year').textContent = year;
+}
+ 
+map.on('load', function () {
+// Data courtesy of http://earthquake.usgs.gov/
+// Query for significant earthquakes in 2015 URL request looked like this:
+// http://earthquake.usgs.gov/fdsnws/event/1/query
+//    ?format=geojson
+//    &starttime=2015-01-01
+//    &endtime=2015-12-31
+//    &minmagnitude=6'
+//
+// Here we're using d3 to help us make the ajax request but you can use
+// Any request method (library or otherwise) you wish.
+d3.json(
+'https://gist.githubusercontent.com/ARPITASHALINI/c058323c873461ac927f2bf42bc32a72/raw/d0885c30fb280a728c30d1d87eb9eb5887341ad6/Volcanic-eruption.geojson',
+function (err, data) {
+if (err) throw err;
+ 
+// Create a month property value based on time
+// used to filter against.
+data.features = data.features.map(function (d) {
+return d;
+});
+ 
+map.addSource('Volcanic-eruption', {
+'type': 'geojson',
+'data': data
+});
+ 
+map.addLayer({
+'id': 'Volcano_Name-circles',
+'type': 'circle',
+'source': 'Volcanic-eruption',
+'paint': {
+    'circle-color': [
+    'interpolate',
+    ['linear'],
+    ['get', 'year'],
+2000,
+'#FCA107',
+2001,
+'#7F3121'
+],
+'circle-opacity': 0.75,
+'circle-radius': [
+'interpolate',
+['linear'],
+['get', 'year'],
+6,
+20,
+8,
+40
+]
+}
+});
+ 
+map.addLayer({
+'id': 'Volcanic-labels',
+'type': 'symbol',
+'source': 'Volcanic-eruption',
+'layout': {
+'text-field': '{Volcanoes}',
+'text-font': [
+'Open Sans Bold',
+'Arial Unicode MS Bold'
+],
+'text-size': 12
+},
+'paint': {
+'text-color': 'rgba(0,0,0,0.5)'
+}
+});
+ 
+// Set filter to first month of the year
+// 0 = January
+filterBy(2000);
+
+var yearSlider = document.getElementById('slider');
+        var curYearIndex = -1;
+
+        function advanceYear() {
+            ++curYearIndex;
+            if (curYearIndex >= years.length) {
+                curYearIndex = 0;
+            }
+            return years[curYearIndex];
+        }
+
+        var cycleYears = window.setInterval(function() { 
+            var currentYear = advanceYear();
+            filterBy(parseInt(currentYear));
+        }, 1000);
 
 
-
-      function makeGeoJSON(csvData) {
-        csv2geojson.csv2geojson(csvData, {
-          latfield: 'Latitude',
-          lonfield: 'Longitude',
-          delimiter: ','
-        }, function (err, data) {
-          map.on('load', function () {
-
-            //Add the the layer to the map 
-            map.addLayer({
-              'id': 'csvData',
-              'type': 'circle',
-              'source': {
-                'type': 'geojson',
-                'data': data
-              },
-              'paint': {
-                'circle-radius': 5,
-                'circle-color': "purple"
-              }
-            });
-
-
-            // When a click event occurs on a feature in the csvData layer, open a popup at the
-            // location of the feature, with description HTML from its properties.
-            map.on('click', 'csvData', function (e) {
-              var coordinates = e.features[0].geometry.coordinates.slice();
-
-              //set popup text 
-              //You can adjust the values of the popup to match the headers of your CSV. 
-              // For example: e.features[0].properties.Name is retrieving information from the field Name in the original CSV. 
-              var description = `<h3>` + e.features[0].properties.Name + `</h3>` + `<h4>` + `<b>` + `Address: ` + `</b>` + e.features[0].properties.Address + `</h4>` + `<h4>` + `<b>` + `Phone: ` + `</b>` + e.features[0].properties.Phone + `</h4>`;
-
-              // Ensure that if the map is zoomed out such that multiple
-              // copies of the feature are visible, the popup appears
-              // over the copy being pointed to.
-              while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-                coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-              }
-
-              //add Popup to map
-
-              new mapboxgl.Popup()
-                .setLngLat(coordinates)
-                .setHTML(description)
-                .addTo(map);
-            });
-
-            // Change the cursor to a pointer when the mouse is over the places layer.
-            map.on('mouseenter', 'csvData', function () {
-              map.getCanvas().style.cursor = 'pointer';
-            });
-
-            // Change it back to a pointer when it leaves.
-            map.on('mouseleave', 'places', function () {
-              map.getCanvas().style.cursor = '';
-            });
-
-            var bbox = turf.bbox(data);
-            map.fitBounds(bbox, { padding: 50 });
-
-            // <div id="slider"></div>
-            var slider = document.getElementById('slider');
-
-            noUiSlider.create(slider, {
-            start: [2000, 2020],
-            connect: true,
-            range: {
-            'min': 2000,
-            'max': 2020
-    }
+        // Create a popup, but don't add it to the map yet.
+        var popup = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false
 });
 
-          });
+map.on('mousemove', function(e) {
+    var features = map.queryRenderedFeatures(e.point, { layers: ['Volcano_Name-circles'] });
+    // Change the cursor style as a UI indicator.
+    map.getCanvas().style.cursor = (features.length) ? 'pointer' : '';
 
-        });
-      };
-    });
+    if (!features.length) {
+        popup.remove();
+        return;
+    }
 
+    var feature = features[0];
 
+    // Populate the popup and set its coordinates
+    // based on the feature found.
+    popup.setLngLat(feature.geometry.coordinates)
+        .setHTML(feature.properties.Volcano_Name+'<b> Volcano Name</b>'+'<br><b>Last year of explosion: </b>'+feature.properties.year+'<br><b>Country: </b>'+feature.properties.Country+'<br><b>Region: </b>'+feature.properties.Region+'<br><b>Tectonic Setting: </b>'+feature.properties.Tectonic_Setting+'<br><b>Dominant Rock Type: </b>'+feature.properties.Dominant_Rock_Type)
+        .addTo(map);
 
-
-  </script>
-
+        document
+.getElementById('slider')
+.addEventListener('input', function (e) {
+var month = parseInt(e.target.value, 10);
+filterBy(year);
+});
+});
+});
+});
+ 
+</script>
+ 
 </body>
-
 </html>
